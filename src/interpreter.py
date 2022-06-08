@@ -89,6 +89,7 @@ class Interpreter:
     def get_array_index(self, var: str):
         """ 将var拆分为列表名和索引 """
         left = self.left_bracket_index(var)
+        # TODO: support slice
         index = self.get_value(var[left + 1: -1])
         var = self.get_value(var[: left])
         if not isinstance(index, int):
@@ -250,9 +251,9 @@ class Interpreter:
         self.set_value(args[0], self.get_value(args[1] if len(args) == 2 else '@'), global_var=True)
 
     def cmd_if(self, args: list):
-        if len(args) > 1 and len(args) != 3:
-            raise InterpreterError('IF takes 0 or 1 or 3 argument(s) but {} were given'.format(len(args)))
-        if (len(args) != 3 and self.get_value(args[0] if args else '@') == 0) \
+        if len(args) != 1 and len(args) != 3:
+            raise InterpreterError('IF takes 1 or 3 argument(s) but {} were given'.format(len(args)))
+        if (len(args) == 1 and self.get_value(args[0]) == 0) \
                 or (len(args) == 3 and not self.cmp_expr(args)):
             self.pointer = self.get_matched_else_eif(self.pointer)
 
@@ -308,9 +309,9 @@ class Interpreter:
         self.pointer = ptr
 
     def cmd_loop(self, args: list):
-        if len(args) > 1 and len(args) != 3:
-            raise InterpreterError('LOOP takes 0 or 1 or 3 argument(s) but {} were given'.format(len(args)))
-        if (len(args) != 3 and self.get_value(args[0] if args else '@') == 0) \
+        if len(args) != 1 and len(args) != 3:
+            raise InterpreterError('LOOP takes 1 or 3 argument(s) but {} were given'.format(len(args)))
+        if (len(args) == 1 and self.get_value(args[0]) == 0) \
                 or (len(args) == 3 and not self.cmp_expr(args)):
             self.pointer = self.get_matched_end(self.pointer, 'LOOP', 'ELOP')
 
@@ -320,32 +321,90 @@ class Interpreter:
         self.pointer = self.get_matched_end(self.pointer, 'ELOP', 'LOOP', -1) - 1
 
     def cmd_brk(self, args: list):
-        if len(args) != 0:
-            raise InterpreterError('BRK takes no argument but {} were given'.format(len(args)))
-        self.pointer = self.get_matched_end(self.pointer, 'LOOP', 'ELOP')
+        if len(args) > 1 and len(args) != 3:
+            raise InterpreterError('BRK takes 0 or 1 or 3 argument(s) but {} were given'.format(len(args)))
+        if (len(args) == 0) or \
+                (len(args) == 1 and self.get_value(args[0]) != 0) or \
+                (len(args) == 3 and self.cmp_expr(args)):
+            self.pointer = self.get_matched_end(self.pointer, 'LOOP', 'ELOP')
 
     def cmd_ctn(self, args: list):
-        if len(args) != 0:
-            raise InterpreterError('CTN takes no argument but {} were given'.format(len(args)))
-        self.pointer = self.get_matched_end(self.pointer, 'ELOP', 'LOOP', -1) - 1
+        if len(args) > 1 and len(args) != 3:
+            raise InterpreterError('CTN takes 0 or 1 or 3 argument(s) but {} were given'.format(len(args)))
+        if (len(args) == 0) or \
+                (len(args) == 1 and self.get_value(args[0]) != 0) or \
+                (len(args) == 3 and self.cmp_expr(args)):
+            self.pointer = self.get_matched_end(self.pointer, 'ELOP', 'LOOP', -1) - 1
+
+    def cmd_cpy(self, args: list):
+        if not 1 <= len(args) <= 2:
+            raise InterpreterError('CPY takes 1 or 2 argument(s) but {} were given'.format(len(args)))
+        lst = self.get_value(args[1] if len(args) == 2 else '@')
+        if not isinstance(lst, list):
+            raise InterpreterError((args[1] if len(args) == 2 else '@') + ' is not a list')
+        self.set_value(args[0], lst.copy())
 
     def cmd_push(self, args: list):
-        if not 1 <= len(args) <= 2:
-            raise InterpreterError('PUSH takes 1 or 2 argument(s) but {} were given'.format(len(args)))
+        if not 1 <= len(args) <= 3:
+            raise InterpreterError('PUSH takes 1 or 2 or 3 argument(s) but {} were given'.format(len(args)))
         lst = self.get_value(args[0])
         if not isinstance(lst, list):
             raise InterpreterError(args[0] + ' is not a list')
-        lst.append(self.get_value(args[1] if len(args) == 2 else '@'))
+        if len(args) == 3:
+            index = self.get_value(args[2])
+            if not isinstance(index, int):
+                raise InterpreterError(str(index) + ' is not a int')
+            lst.insert(index, self.get_value(args[1]))
+        else:
+            lst.append(self.get_value(args[1] if len(args) == 2 else '@'))
 
     def cmd_pop(self, args: list):
-        if not 1 <= len(args) <= 2:
-            raise InterpreterError('POP takes 1 or 2 argument(s) but {} were given'.format(len(args)))
+        if not 1 <= len(args) <= 3:
+            raise InterpreterError('POP takes 1 or 2 or 3 argument(s) but {} were given'.format(len(args)))
         lst = self.get_value(args[0])
         if not isinstance(lst, list):
             raise InterpreterError(args[0] + ' is not a list')
-        if len(lst) == 0:
-            raise InterpreterError(args[0] + ' is empty')
-        self.set_value(args[1] if len(args) == 2 else '@', lst.pop())
+        if len(args) == 3:
+            index = self.get_value(args[2])
+            if not isinstance(index, int):
+                raise InterpreterError(str(index) + ' is not a int')
+            try:
+                self.set_value(args[1] if len(args) == 2 else '@', lst.pop(index))
+            except IndexError:
+                raise InterpreterError('{} is out of list {} range'.format(index, args[0]))
+        else:
+            self.set_value(args[1] if len(args) == 2 else '@', lst.pop())
+
+    def cmd_idx(self, args: list):
+        if not 1 <= len(args) <= 2:
+            raise InterpreterError('IDX takes 1 or 2 argument(s) but {} were given'.format(len(args)))
+        lst = self.get_value(args[0])
+        if not isinstance(lst, list):
+            raise InterpreterError(args[0] + ' is not a list')
+        try:
+            idx = lst.index(self.get_value(args[1] if len(args) == 2 else '@'))
+        except ValueError:
+            idx = -1
+        self.set_value('@', idx)
+
+    def cmd_revs(self, args: list):
+        if len(args) != 1:
+            raise InterpreterError('REVS takes 1 argument but {} were given'.format(len(args)))
+        lst = self.get_value(args[0])
+        if not isinstance(lst, list):
+            raise InterpreterError(args[0] + ' is not a list')
+        lst.reverse()
+
+    def cmd_sort(self, args: list):
+        if len(args) != 1:
+            raise InterpreterError('SORT takes 1 argument but {} were given'.format(len(args)))
+        lst = self.get_value(args[0])
+        if not isinstance(lst, list):
+            raise InterpreterError(args[0] + ' is not a list')
+        try:
+            lst.sort()
+        except TypeError:
+            raise InterpreterError(args[0] + ' have non comparable items')
 
     def cmd_int(self, args: list):
         if len(args) != 1:
