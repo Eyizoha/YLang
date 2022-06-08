@@ -1,6 +1,8 @@
 from cpu import Cpu
 from moudle import *
 from random import randint
+from numpy.linalg import det
+from time import perf_counter as pc
 
 code = '''
 def det mat
@@ -71,36 +73,27 @@ def gen_mat n
     ret mat
 edef
 
-// str n of mat:
-// out @
-// in
-// call gen_mat @
-// mov mat
-// out mat
-// call det mat
-// out @
-
-ins
+mov mat {}
+call det mat
 out @
-call det @
-outs @
 '''
-
-ins = InStream()
-outs = OutStream()
-cpu = Cpu(1)
-# cpu.bus.install(Inputer())
-cpu.bus.install(Outputer())
-cpu.bus.install(ins)
-cpu.bus.install(outs)
-cpu.boot(code)
 
 n = 6
 mat = [[randint(-9, 9) for _ in range(n)] for _ in range(n)]
-ins.set(mat)
+print('mat:', mat)
+
+cpu = Cpu(1)
+cpu.bus.install(Inputer())
+cpu.bus.install(Outputer())
+cpu.boot(code.format(str(mat).replace(' ', '')))
+
+t1 = pc()
+print(det(mat))
+print('np det cost:', pc() - t1)
 
 count = 1
+t2 = pc()
 while cpu.run():
     count += 1
-print('\ncount: {}'.format(count))
-print(*outs.get())
+print('YLang det cost:', pc() - t2)
+print('YLang cmd exec count:', count)
