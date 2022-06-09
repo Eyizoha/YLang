@@ -1,44 +1,84 @@
 class InterpreterError(Exception):
     """ 解释器内部异常 """
-    pass
+
+    def __init__(self, msg):
+        super(InterpreterError, self).__init__(msg)
+        self.count = 0
 
 
 class Interpreter:
     """ Y语言解释器 """
 
-    def __init__(self, codes: list, mod_cmds: dict):
-        self.codes = codes  # Y语言代码，字符串列表
+    def __init__(self, api, tid=0, pointer=0, local_vars=None):
+        self.api = api  # 归属cpu
+        self.tid = tid  # 线程id
+        self.wait_time = 1  # 线程等待调度时间
+        self.wait_this_tids = set()  # 等待此线程的线程id
 
         self.ans = 0  # 特殊变量@
         self.call_stack = []  # 解释器栈
-        self.global_vars = {}  # 全局变量
-        self.local_vars = {}  # 局部变量
-        self.pointer = 0  # 代码指针
+        self.local_vars = local_vars if local_vars else {}  # 局部变量
+        self.pointer = pointer  # 代码指针
 
         self.prime_commands = {name[4:]: self.__getattribute__(name) for name in self.__dir__()
                                if name.startswith('cmd_')}  # Y语言原生指令集
-        self.module_commands = mod_cmds  # 模块指令集
 
-    def run(self, cpt: int):
-        """ 执行cpt条指令，顺利执行完毕返回True，已无指令可执行或执行出错返回False """
+    @property
+    def codes(self):
+        return self.api['codes']()
+
+    @property
+    def module_commands(self):
+        return self.api['module_commands']()
+
+    @property
+    def global_vars(self):
+        return self.api['global_vars']()
+
+    @property
+    def create_thread(self):
+        return self.api['create_thread']
+
+    @property
+    def activate_thread(self):
+        return self.api['activate_thread']
+
+    @property
+    def block_thread(self):
+        return self.api['block_thread']
+
+    @property
+    def wait_thread(self):
+        return self.api['wait_thread']
+
+    @property
+    def kill_thread(self):
+        return self.api['kill_thread']
+
+    @property
+    def is_blocked(self):
+        return self.api['is_blocked']
+
+    def run(self, num_exec: int):
+        """ 尝试执行num_exec条指令，返回实际执行的指令数 """
         count = 0
-        while count < cpt:
-            if self.pointer >= len(self.codes) or self.pointer < 0:
-                return False
+        while count < num_exec:
+            if self.pointer >= len(self.codes) or self.pointer < 0 or self.is_blocked(self.tid):
+                return count
             code = self.codes[self.pointer].strip()
             try:
                 count += self.exec(code)
             except InterpreterError as e:
-                print('(line {}: {})Cpu Error: '.format(self.pointer, code) + str(e))
-                return False
+                e.count = count
+                raise e
             self.pointer += 1
-        return True
+        return count
 
     def exec(self, code: str):
         """ 执行一条指令，执行成功返回1，否则返回0"""
         cmd, *args = code.split(' ')
         cmd = cmd.lower()
-        if not cmd or cmd.startswith('//'):
+        if not cmd or cmd.startswith('//') or cmd.startswith('#'):
             return 0
         try:
             self.prime_commands[cmd](args)
@@ -277,14 +317,16 @@ class Interpreter:
         if len(args) != 0:
             raise InterpreterError('EDEF takes no argument but {} were given'.format(len(args)))
         if not self.call_stack:
-            raise InterpreterError('EDEF is mismatched')
+            self.pointer = -2
+            return
         self.pointer, self.local_vars = self.call_stack.pop()
 
     def cmd_ret(self, args: list):
         if len(args) > 1:
             raise InterpreterError('RET takes 0 or 1 argument but {} were given'.format(len(args)))
         if not self.call_stack:
-            raise InterpreterError('RET outside function')
+            self.pointer = -2
+            return
         if len(args) == 1:
             self.set_value('@', self.get_value(args[0]))
         self.pointer, self.local_vars = self.call_stack.pop()
@@ -527,3 +569,65 @@ class Interpreter:
             raise InterpreterError('NOT takes 1 argument but {} were given'.format(len(args)))
         oper = self.get_value(args[0])
         self.set_value('@', 0 if oper != 0 else 1)
+
+    def cmd_tid(self, args: list):
+        if len(args) != 1:
+            raise InterpreterError('TID takes 1 argument but {} were given'.format(len(args)))
+        self.set_value(args[0], self.tid)
+
+    def cmd_run(self, args: list):
+        if len(args) < 1:
+            raise InterpreterError('RUN takes at least 1 argument but {} were given'.format(len(args)))
+        ptr = self.get_value(args[0])
+        if not isinstance(ptr, int):
+            raise InterpreterError(args[0] + ' is not a function')
+        cmd, *fun_args = self.codes[ptr].strip().split(' ')
+        if cmd.lower() != 'def':
+            raise InterpreterError(args[0] + ' is not a function')
+        if len(args) != len(fun_args):
+            raise InterpreterError(
+                fun_args[0] + ' takes {} argument(s) but {} were given'.format(len(fun_args) - 1, len(args) - 1))
+        for arg in fun_args:
+            if not arg.isidentifier():
+                raise InterpreterError(arg + ' is not a variable')
+        tid = self.create_thread(ptr + 1, {var: self.get_value(args[i]) for i, var in enumerate(fun_args)})
+        self.set_value('@', tid)
+
+    def cmd_wait(self, args: list):
+        if len(args) != 1:
+            raise InterpreterError('WAIT takes 1 argument but {} were given'.format(len(args)))
+        tid = self.get_value(args[0])
+        self.wait_thread(self.tid, tid)
+
+    def cmd_kill(self, args: list):
+        if len(args) != 1:
+            raise InterpreterError('KILL takes 1 argument but {} were given'.format(len(args)))
+        tid = self.get_value(args[0])
+        self.kill_thread(tid)
+        if tid == self.tid:
+            self.pointer = -2
+
+    def cmd_lock(self, args: list):
+        if len(args) != 1:
+            raise InterpreterError('LOCK takes 1 argument but {} were given'.format(len(args)))
+        lock = self.get_value(args[0])
+        if not isinstance(lock, list):
+            raise InterpreterError(args[0] + ' is not a list')
+        if lock:
+            if lock[0] == self.tid:
+                return
+            self.block_thread(self.tid)
+        lock.append(self.tid)
+
+    def cmd_ulck(self, args: list):
+        if len(args) != 1:
+            raise InterpreterError('ULCK takes 1 argument but {} were given'.format(len(args)))
+        lock = self.get_value(args[0])
+        if not isinstance(lock, list):
+            raise InterpreterError(args[0] + ' is not a list')
+        if lock and lock[0] == self.tid:
+            lock.pop(0)
+            if lock:
+                self.activate_thread(lock[0])
+        else:
+            raise InterpreterError(args[0] + ' is not owned by the thread')

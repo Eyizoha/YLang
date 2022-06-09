@@ -78,22 +78,47 @@ call det mat
 out @
 '''
 
+code_mt_test = """
+def loop_out
+    tid id
+    mov x 0
+    loop x < 10
+        out [id,x]
+        inc x
+        if x == 5
+            # kill id
+        eif
+    elop
+edef
+
+run loop_out
+mov tid1
+run loop_out
+mov tid2
+wait tid1
+wait tid2
+out 0
+"""
+
 n = 6
 mat = [[randint(-9, 9) for _ in range(n)] for _ in range(n)]
-print('mat:', mat)
+# print('mat:', mat)
 
-cpu = Cpu(1)
-cpu.bus.install(Inputer())
-cpu.bus.install(Outputer())
-cpu.boot(code.format(str(mat).replace(' ', '')))
+cpt = 1
+cpu = Cpu(cpt)
+cpu.install(Inputer())
+cpu.install(Outputer())
+# cpu.boot(code.format(str(mat).replace(' ', '')))
+cpu.boot(code_mt_test)
 
-t1 = pc()
-print(det(mat))
-print('np det cost:', pc() - t1)
+# t1 = pc()
+# print(det(mat))
+# print('np det cost:', pc() - t1)
 
-count = 1
+count = 0
 t2 = pc()
 while cpu.run():
-    count += 1
-print('YLang det cost:', pc() - t2)
+    count += cpt
+    # cpu.print_thread_status(True)
+print('\nYLang det cost:', pc() - t2)
 print('YLang cmd exec count:', count)

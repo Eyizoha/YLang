@@ -1,6 +1,5 @@
 class MoudleError(Exception):
     """ 外部模块异常 """
-    pass
 
 
 class BaseMoudle:
