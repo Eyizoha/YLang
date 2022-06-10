@@ -84,7 +84,7 @@ class Interpreter:
             self.prime_commands[cmd](args)
         except KeyError:
             try:
-                val = self.module_commands[cmd]([self.get_value(arg) for arg in args])
+                val = self.module_commands[cmd](self, [self.get_value(arg) for arg in args])
                 if val is not None:
                     self.set_value('@', val)
             except KeyError:

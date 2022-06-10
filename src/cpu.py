@@ -42,6 +42,7 @@ class Cpu:
         self._cpu_remain_time = 0
 
     def install(self, moudle: BaseMoudle):
+        moudle.set_api(self.cpu_api)
         self._bus.install(moudle)
 
     def uninstall(self, moudle: BaseMoudle):
@@ -54,32 +55,33 @@ class Cpu:
 
     def run(self):
         if not self._active_thread_ids:
-            if self._blocked_thread_ids:
-                print('Cpu Error: No active thread, a deadlock may have occurred')
-            return False
+            return len(self._all_threads) != 0
         self._cpu_remain_time = self._command_per_turn
         if self._running_thread:
             self._run_internal()
         while self._cpu_remain_time > 0:
             self._running_remain_time = self._time_slice_len
             if not self._active_thread_ids:
-                if self._blocked_thread_ids:
-                    print('Cpu Error: No active thread, a deadlock may have occurred')
-                return True
+                return len(self._all_threads) != 0
             self._running_thread = self._scheduling_thread()
             self._run_internal()
         return True
 
     def print_thread_status(self, more_detail=False):
-        print('-------------------------------------------------------')
+        rtid = -1
+        if self._running_thread:
+            rtid = self._running_thread.tid
+        print('-------------------------------------------------------' * (1 + more_detail))
         for thread in self._all_threads.values():
             tid = thread.tid
+            running = '* ' if tid == rtid else ''
             state = 'blocked' if self._is_blocked_thread(tid) else 'active'
             line = thread.pointer
             code = self._codes[line].strip() if 0 <= line < len(self._codes) else ''
-            print('tid: {}, state: {}, next line {}: {}'.format(tid, state, line, code))
+            msg = '{}tid: {}, state: {}, next line {}: {}'.format(running, tid, state, line, code)
             if more_detail:
-                print(thread.local_vars)
+                msg += ' | ' + str(thread.local_vars)
+            print(msg)
 
     def _run_internal(self):
         if self._cpu_remain_time >= self._running_remain_time:
