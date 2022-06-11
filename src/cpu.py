@@ -139,8 +139,8 @@ class Cpu:
         self._all_threads[tid].wait_time = 1
         return self._all_threads[tid]
 
-    def _create_thread(self, pointer, local_vars):
-        thread = Interpreter(self.cpu_api, self._next_id, pointer, local_vars)
+    def _create_thread(self, pointer, local_vars, ans=0, call_stack=None):
+        thread = Interpreter(self.cpu_api, self._next_id, pointer, local_vars, ans, call_stack)
         self._active_thread_ids.append(thread.tid)
         self._all_threads[thread.tid] = thread
         self._next_id += 1

@@ -245,8 +245,34 @@ def mt_test3():
         cpu.print_thread_status(True)
 
 
+def fork_test():
+    cpt = 1
+    cpu = Cpu(cpt, 1)
+    cpu.install(Inputer())
+    cpu.install(Outputer())
+    code = '''
+    def forkn n
+        mov i 0
+        loop i < n
+            inc i
+            fork
+        elop
+    edef
+    
+    mov id 0
+    call forkn 3
+    tid id
+    out id
+    '''
+    cpu.boot(code)
+    while cpu.run():
+        cpu.print_thread_status()
+        pass
+
+
 if __name__ == '__main__':
     # det_test()
     # mt_test()
     # mt_test2()
-    mt_test3()
+    # mt_test3()
+    fork_test()

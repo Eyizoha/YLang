@@ -9,14 +9,14 @@ class InterpreterError(Exception):
 class Interpreter:
     """ Y语言解释器 """
 
-    def __init__(self, api, tid=0, pointer=0, local_vars=None):
+    def __init__(self, api, tid=0, pointer=0, local_vars=None, ans=0, call_stack=None):
         self.api = api  # 归属cpu
         self.tid = tid  # 线程id
         self.wait_time = 1  # 线程等待调度时间
         self.wait_this_tids = set()  # 等待此线程的线程id
 
-        self.ans = 0  # 特殊变量@
-        self.call_stack = []  # 解释器栈
+        self.ans = ans  # 特殊变量@
+        self.call_stack = call_stack if call_stack else []  # 解释器栈
         self.local_vars = local_vars if local_vars else {}  # 局部变量
         self.pointer = pointer  # 代码指针
 
@@ -594,8 +594,11 @@ class Interpreter:
         self.set_value('@', tid)
 
     def cmd_fork(self, args: list):
-        # TODO: impl this
-        pass
+        if len(args) != 0:
+            raise InterpreterError('FORK takes no argument but {} were given'.format(len(args)))
+        tid = self.create_thread(self.pointer + 1, self.local_vars.copy(), -1,
+                                 [(ptr, local_vars.copy()) for ptr, local_vars in self.call_stack])
+        self.set_value('@', tid)
 
     def cmd_wait(self, args: list):
         if len(args) != 1:
@@ -631,7 +634,10 @@ class Interpreter:
             raise InterpreterError(args[0] + ' is not a list')
         if lock and lock[0] == self.tid:
             lock.pop(0)
-            if lock:
-                self.activate_thread(lock[0])
+            while lock:
+                if self.is_blocked(lock[0]):
+                    self.activate_thread(lock[0])
+                    return
+                lock.pop(0)
         else:
             raise InterpreterError(args[0] + ' is not owned by the thread')
