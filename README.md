@@ -103,7 +103,7 @@ Y语言的代码从头开始逐行运行，每行代码都对应一个行号，�
  - **cpy**：拷贝指令，接受一个变量名和一个可选列表参数，将第二个列表值拷贝进第一个变量，若无第二个参数则默认为@，如 cpy list1 list2。
  - **push**：压入指令，接受一个列表和一个可选参数和一个可选位置，无位置参数时将第二个参数追加到列表末尾（否则插入到对应位置），如 push list var 或 push list var index。无可选参数时 push list 相当于 push list @。
  - **pop**：弹出指令，接受一个列表和一个可选参数和一个可选位置，无位置参数时将列表末尾元素（否则弹出该位置元素）弹出放入第二个参数，如 pop list var 或 pop list var index。无可选参数时 pop list 相当于 pop list @。
- - **idx**：索引指令，接受一个列表和一个可选参数，求第二个参数在列表中的索引，若无第二个参数则默认为@，如 idx list item。
+ - **idx**：索引指令，接受一个列表和一个可选参数，求第二个参数在列表中的索引（不存在则为-1），若无第二个参数则默认为@，如 idx list item。
  - **revs**：反转指令，接受一个列表，将其反转，如 revs list。
  - **sort**：排序指令，接受一个列表，将其排序，如 sort list。
  - **int**：取整指令，接受一个数字变量，将其值的小数部分舍去，如 int num。
@@ -185,16 +185,12 @@ def quick_sort array low high
         mov key array[low]
         loop i < j
             loop key <= array[j]
-                if i >= j
-                    brk
-                eif
+                brk i >= j
                 dec j
             elop
             mov array[i] array[j]
             loop key >= array[i]
-                if i >= j
-                    brk
-                eif
+                brk i >= j
                 inc i
             elop
             mov array[j] array[i]
