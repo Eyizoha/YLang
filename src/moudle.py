@@ -54,7 +54,9 @@ class Inputer(BaseMoudle):
                 raise MoudleError(ret + ' is not a number')
 
     def _input_thread(self, tid):
-        ret = input()
+        ret = ''
+        while not ret:
+            ret = input()
         self.ret[tid] = ret
         self.api['activate_thread'](tid)
 
@@ -68,4 +70,5 @@ class Outputer(BaseMoudle):
 
 
 class Sleeper(BaseMoudle):
+    # TODO: impl this
     pass

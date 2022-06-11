@@ -103,7 +103,60 @@ out 0
 """
 
 code_mt_test2 = """
+def gen_prime primes
+    def is_prime num
+        pow num 0.5
+        mov sqrt_num @
+        mov i 2
+        loop i <= sqrt_num
+            mod num i
+            if @ == 0
+                ret 0
+            eif
+            inc i
+        elop
+        ret 1
+    edef
+    
+    mov i 2
+    loop 1
+        call is_prime i
+        if @
+            push primes i
+        eif
+        inc i
+    elop
+edef
 
+def get_prime primes ids
+    mov id 0
+    loop 1
+        if ids[]
+            pop ids id 0
+            if id < primes[]
+                out [id,primes[id]]
+            else
+                push ids id
+            eif
+        eif
+    elop
+edef
+
+mov primes [1]
+mov ids []
+run gen_prime primes
+mov tid1 @
+run get_prime primes ids
+mov tid2 @
+
+loop 1
+    in
+    brk @ < 0
+    push ids @
+elop
+kill tid1
+kill tid2
+out primes[]
 """
 
 
@@ -146,12 +199,54 @@ def mt_test2():
     cpu = Cpu(cpt, 3)
     cpu.install(Inputer())
     cpu.install(Outputer())
-    cpu.boot(fun_det + code_mt_test2)
+    cpu.boot(code_mt_test2)
     while cpu.run():
         pass
+
+
+def mt_test3():
+    cpt = 10
+    cpu = Cpu(cpt, 3)
+    cpu.install(Inputer())
+    cpu.install(Outputer())
+    code = '''
+    def async_add num step mutex
+        loop 1
+            lock mutex
+            add num[0] step
+            mov num[0] @
+            ulck mutex
+        elop
+    edef
+
+    mov tids []
+    mov num [0]
+    mov mutex []
+    run async_add num 1 mutex
+    push tids
+    run async_add num 2 mutex
+    push tids
+    run async_add num 3 mutex
+    push tids
+    loop 1
+        lock mutex
+        brk num[0] > 1000
+        out num[0]
+        ulck mutex
+    elop
+    mov i 0
+    loop i < tids[]
+        kill tids[i]
+        inc i
+    elop
+    '''
+    cpu.boot(code)
+    while cpu.run():
+        cpu.print_thread_status(True)
 
 
 if __name__ == '__main__':
     # det_test()
     # mt_test()
-    mt_test2()
+    # mt_test2()
+    mt_test3()

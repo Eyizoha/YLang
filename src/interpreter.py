@@ -411,7 +411,7 @@ class Interpreter:
             if not isinstance(index, int):
                 raise InterpreterError(str(index) + ' is not a int')
             try:
-                self.set_value(args[1] if len(args) == 2 else '@', lst.pop(index))
+                self.set_value(args[1], lst.pop(index))
             except IndexError:
                 raise InterpreterError('{} is out of list {} range'.format(index, args[0]))
         else:
@@ -592,6 +592,10 @@ class Interpreter:
                 raise InterpreterError(arg + ' is not a variable')
         tid = self.create_thread(ptr + 1, {var: self.get_value(args[i]) for i, var in enumerate(fun_args)})
         self.set_value('@', tid)
+
+    def cmd_fork(self, args: list):
+        # TODO: impl this
+        pass
 
     def cmd_wait(self, args: list):
         if len(args) != 1:

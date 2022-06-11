@@ -215,7 +215,33 @@ out array
 > 输出：[1, 2, 3, 3, 5, 5, 5, 5, 6, 6, 6, 7, 8, 8, 9]
 ###### 3、多线程报数
 ```y
+def async_add num step mutex
+    loop 1
+        lock mutex
+        add num[0] step
+        mov num[0] @
+        ulck mutex
+    elop
+edef
 
+mov tids []
+mov num [0]
+mov mutex []
+run async_add num 1 mutex
+push tids
+run async_add num 2 mutex
+push tids
+run async_add num 3 mutex
+push tids
+loop 1
+    lock mutex
+    brk num[0] > 1000
+    out num[0]
+    ulck mutex
+elop
+mov i 0
+loop i < tids[]
+    kill tids[i]
+    inc i
+elop
 ```
-
-> 输出：
