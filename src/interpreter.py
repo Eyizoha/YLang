@@ -604,12 +604,16 @@ class Interpreter:
         if len(args) != 1:
             raise InterpreterError('WAIT takes 1 argument but {} were given'.format(len(args)))
         tid = self.get_value(args[0])
+        if not (isinstance(tid, int) or isinstance(tid, float)):
+            raise InterpreterError(str(tid) + ' is not a number')
         self.wait_thread(self.tid, tid)
 
     def cmd_kill(self, args: list):
         if len(args) != 1:
             raise InterpreterError('KILL takes 1 argument but {} were given'.format(len(args)))
         tid = self.get_value(args[0])
+        if not (isinstance(tid, int) or isinstance(tid, float)):
+            raise InterpreterError(str(tid) + ' is not a number')
         self.kill_thread(tid)
         if tid == self.tid:
             self.pointer = -2

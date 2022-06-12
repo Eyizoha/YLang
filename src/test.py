@@ -270,9 +270,39 @@ def fork_test():
         pass
 
 
+def sleep_test():
+    cpt = 10
+    cpu = Cpu(cpt, 3)
+    cpu.install(Inputer())
+    cpu.install(Outputer())
+    cpu.install(Sleeper())
+    code = '''
+    def inc_per_sec num
+        loop 1
+            sleep 1
+            inc num[0]
+            out num[0]
+        elop
+    edef
+
+    mov num [0]
+    run inc_per_sec num
+    mov tid
+    loop num[0] >= 0
+        in
+        mov num[0]
+    elop
+    kill tid
+    '''
+    cpu.boot(code)
+    while cpu.run():
+        pass
+
+
 if __name__ == '__main__':
     # det_test()
     # mt_test()
     # mt_test2()
     # mt_test3()
-    fork_test()
+    # fork_test()
+    sleep_test()

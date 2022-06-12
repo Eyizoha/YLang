@@ -1,5 +1,7 @@
 from threading import Thread
 from interpreter import Interpreter
+from time import sleep
+
 
 
 class MoudleError(Exception):
@@ -70,5 +72,30 @@ class Outputer(BaseMoudle):
 
 
 class Sleeper(BaseMoudle):
-    # TODO: impl this
-    pass
+    def __init__(self):
+        BaseMoudle.__init__(self, 'sleep')
+        self.threads = {}
+
+    def run(self, thread: Interpreter, args: list):
+        if len(args) != 1:
+            raise MoudleError('SLEEP takes 1 argument but {} were given'.format(len(args)))
+        secs = args[0]
+        if not (isinstance(secs, int) or isinstance(secs, float)):
+            raise MoudleError(str(secs) + ' is not a number')
+        if secs < 0:
+            raise MoudleError(str(secs) + ' is negative')
+
+        tid = thread.tid
+        if tid not in self.threads.keys():
+            self.api['block_thread'](tid)
+            thread.pointer -= 1
+            t = Thread(target=self._sleep_thread, args=(tid, secs))
+            self.threads[tid] = t
+            t.start()
+            return
+
+        del self.threads[tid]
+
+    def _sleep_thread(self, tid, secs):
+        sleep(secs)
+        self.api['activate_thread'](tid)
