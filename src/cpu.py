@@ -1,6 +1,7 @@
 from moudle import BaseMoudle, MoudleError
 from interpreter import Interpreter, InterpreterError
 from random import choice, choices
+from threading import Lock
 
 
 class Cpu:
@@ -31,6 +32,7 @@ class Cpu:
         self._global_vars = {}  # 全局变量
         self._module_commands = None  # 模块指令集
 
+        self.lock = Lock()
         self._all_threads = {}  # 所有线程
         self._active_thread_ids = []  # 活动线程id
         self._blocked_thread_ids = set()  # 阻塞线程id
@@ -63,7 +65,9 @@ class Cpu:
             self._running_remain_time = self._time_slice_len
             if not self._active_thread_ids:
                 return len(self._all_threads) != 0
+            self.lock.acquire()
             self._running_thread = self._scheduling_thread()
+            self.lock.release()
             self._run_internal()
         return True
 
@@ -130,7 +134,7 @@ class Cpu:
         return self._all_threads[self._active_thread_ids[self._round_idx]]
 
     def _scheduler_random(self):
-        return choice(self._all_threads)
+        return self._all_threads[choice(self._active_thread_ids)]
 
     def _scheduler_random_with_waiting(self):
         tid = choices(self._active_thread_ids, [self._all_threads[tid].wait_time for tid in self._active_thread_ids])[0]
@@ -149,12 +153,16 @@ class Cpu:
     def _activate_thread(self, tid):
         assert tid in self._blocked_thread_ids
         self._blocked_thread_ids.remove(tid)
+        self.lock.acquire()
         self._active_thread_ids.append(tid)
+        self.lock.release()
 
     def _block_thread(self, tid):
         assert tid in self._active_thread_ids
         self._blocked_thread_ids.add(tid)
+        self.lock.acquire()
         self._active_thread_ids.remove(tid)
+        self.lock.release()
         self._round_idx -= 1
 
     def _finish_thread(self, tid):

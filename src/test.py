@@ -299,10 +299,78 @@ def sleep_test():
         pass
 
 
+def multi_qsort_test():
+    cpt = 1
+    cpu = Cpu(cpt, 3)
+    cpu.install(Inputer())
+    cpu.install(Outputer())
+    cpu.install(Sleeper())
+    code = '''
+    def Qsort array ids
+    sub array[] 1
+    call quick_sort array 0 @ ids
+    edef
+    
+    def quick_sort array low high ids
+        if low >= high
+            ret
+        eif
+        mov i low
+        mov j high
+        mov key array[low]
+        loop i < j
+            loop key <= array[j]
+                brk i >= j
+                dec j
+            elop
+            mov array[i] array[j]
+            loop key >= array[i]
+                brk i >= j
+                inc i
+            elop
+            mov array[j] array[i]
+        elop
+        mov array[i] key
+        sub i 1
+        run quick_sort array low @ ids
+        push ids
+        add i 1
+        run quick_sort array @ high ids
+        push ids
+    edef
+    
+    def wait ids signal
+        loop ids[] > 0
+            pop ids @ 0
+            wait @
+        elop
+        mov signal[0] 0
+    edef
+    
+    mov array {}
+    mov ids []
+    mov sig [1]
+    run Qsort array ids
+    push ids
+    call wait ids sig
+    # loop sig[0]
+    #     out array
+    #     sleep 0.001
+    # elop
+    out array
+    '''
+
+    cpu.boot(code.format(str([randint(0, 99) for _ in range(1000)]).replace(' ', '')))
+    while cpu.run():
+        cpu.print_thread_status()
+        pass
+
+
 if __name__ == '__main__':
     # det_test()
     # mt_test()
     # mt_test2()
     # mt_test3()
     # fork_test()
-    sleep_test()
+    # sleep_test()
+    multi_qsort_test()

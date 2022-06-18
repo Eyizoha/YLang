@@ -3,7 +3,6 @@ from interpreter import Interpreter
 from time import sleep
 
 
-
 class MoudleError(Exception):
     """ 外部模块异常 """
 
