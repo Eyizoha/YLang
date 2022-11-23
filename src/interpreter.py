@@ -230,6 +230,9 @@ class Interpreter:
             return self.return_var(var)
         return self.return_number(var)
 
+    def only_global_val(self, var: str):
+        return var not in self.local_vars.keys() and var in self.global_vars.keys()
+
     def set_value(self, var: str, val, global_var=False):
         """ var为变量名或者数组嵌套表达式字符串，设置数组嵌套表达式的值或者变量的值为val """
         if var.endswith(']'):
@@ -270,7 +273,7 @@ class Interpreter:
     def cmd_at(self, args: list):
         if len(args) != 1:
             raise InterpreterError('AT takes 1 argument but {} were given'.format(len(args)))
-        self.set_value(args[0], self.pointer)
+        self.set_value(args[0], self.pointer, global_var=self.only_global_val(args[0]))
 
     def cmd_go(self, args: list):
         if len(args) != 1:
@@ -384,7 +387,7 @@ class Interpreter:
         lst = self.get_value(args[1] if len(args) == 2 else '@')
         if not isinstance(lst, list):
             raise InterpreterError((args[1] if len(args) == 2 else '@') + ' is not a list')
-        self.set_value(args[0], lst.copy())
+        self.set_value(args[0], lst.copy(), global_var=self.only_global_val(args[0]))
 
     def cmd_push(self, args: list):
         if not 1 <= len(args) <= 3:
@@ -411,11 +414,11 @@ class Interpreter:
             if not isinstance(index, int):
                 raise InterpreterError(str(index) + ' is not a int')
             try:
-                self.set_value(args[1], lst.pop(index))
+                self.set_value(args[1], lst.pop(index), global_var=self.only_global_val(args[0]))
             except IndexError:
                 raise InterpreterError('{} is out of list {} range'.format(index, args[0]))
         else:
-            self.set_value(args[1] if len(args) == 2 else '@', lst.pop())
+            self.set_value(args[1] if len(args) == 2 else '@', lst.pop(), global_var=self.only_global_val(args[0]))
 
     def cmd_idx(self, args: list):
         if not 1 <= len(args) <= 2:
@@ -454,7 +457,7 @@ class Interpreter:
         oper = self.get_value(args[0])
         if not (isinstance(oper, int) or isinstance(oper, float)):
             raise InterpreterError(str(oper) + ' is not a number')
-        self.set_value(args[0], int(oper))
+        self.set_value(args[0], int(oper), global_var=self.only_global_val(args[0]))
 
     def cmd_inc(self, args: list):
         if len(args) != 1:
@@ -462,7 +465,7 @@ class Interpreter:
         oper = self.get_value(args[0])
         if not (isinstance(oper, int) or isinstance(oper, float)):
             raise InterpreterError(str(oper) + ' is not a number')
-        self.set_value(args[0], oper + 1)
+        self.set_value(args[0], oper + 1, global_var=self.only_global_val(args[0]))
 
     def cmd_dec(self, args: list):
         if len(args) != 1:
@@ -470,7 +473,7 @@ class Interpreter:
         oper = self.get_value(args[0])
         if not (isinstance(oper, int) or isinstance(oper, float)):
             raise InterpreterError(str(oper) + ' is not a number')
-        self.set_value(args[0], oper - 1)
+        self.set_value(args[0], oper - 1, global_var=self.only_global_val(args[0]))
 
     def cmd_add(self, args: list):
         if len(args) != 2:
@@ -573,7 +576,7 @@ class Interpreter:
     def cmd_tid(self, args: list):
         if len(args) != 1:
             raise InterpreterError('TID takes 1 argument but {} were given'.format(len(args)))
-        self.set_value(args[0], self.tid)
+        self.set_value(args[0], self.tid, global_var=self.only_global_val(args[0]))
 
     def cmd_run(self, args: list):
         if len(args) < 1:
